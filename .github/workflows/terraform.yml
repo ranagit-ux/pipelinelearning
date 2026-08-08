@@ -5,35 +5,70 @@ on:
     branches:
       - main
 
-  pull_request:
-    branches:
-      - main
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
+
   terraform:
     name: Terraform Validation
     runs-on: ubuntu-latest
 
-    defaults:
-      run:
-        working-directory: environment/dev
-
     steps:
 
+      # --------------------------------
+      # 1. Checkout repository
+      # --------------------------------
       - name: Checkout code
         uses: actions/checkout@v6
 
+      # --------------------------------
+      # 2. Install Terraform
+      # --------------------------------
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
+      # --------------------------------
+      # 3. Terraform Format Check
+      # --------------------------------
       - name: Terraform Format Check
+        working-directory: .
         run: terraform fmt -check -recursive
 
-      - name: Terraform Init
-        run: terraform init
+      # --------------------------------
+      # 4. Login to Azure using OIDC
+      # --------------------------------
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: 7fd88107-f50d-43b6-b09e-fd089a5a1f29
+          tenant-id: ea631881-c178-49fe-b539-0e83bc2e2c12
+          subscription-id: c83186ec-c949-4e2f-9e31-8888c510ac96
 
+      # --------------------------------
+      # 5. Check Azure Login
+      # --------------------------------
+      - name: Verify Azure Login
+        run: az account show
+
+      # --------------------------------
+      # 6. Terraform Init
+      # --------------------------------
+      - name: Terraform Init
+        working-directory: environment/dev
+        run: terraform init -input=false
+
+      # --------------------------------
+      # 7. Terraform Validate
+      # --------------------------------
       - name: Terraform Validate
+        working-directory: environment/dev
         run: terraform validate
 
+      # --------------------------------
+      # 8. Terraform Plan
+      # --------------------------------
       - name: Terraform Plan
-        run: terraform plan
+        working-directory: environment/dev
+        run: terraform plan -input=false
